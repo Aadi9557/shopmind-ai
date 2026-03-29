@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ShopMind AI — Sign In</title>
+<link rel="stylesheet" href="css/style.css"/>
+<style>
+/* ── LOGIN PAGE SPECIFIC ── */
+body {
+  min-height: 100vh;
+  display: flex;
+}
+
+html {
+  overflow-y: auto;
+}
+.auth-left {
+  flex:1; display:flex; flex-direction:column;
+  justify-content:flex-start; padding:60px 72px;
+  border-right:1px solid var(--line);
+  background:linear-gradient(135deg, rgba(255,153,51,0.03) 0%, transparent 50%);
+  position:relative; overflow-y:auto;
+}
+
+.auth-left::before {
+  content:'';
+  position:absolute; bottom:-100px; left:-100px;
+  width:400px; height:400px; border-radius:50%;
+  background:radial-gradient(circle, rgba(255,153,51,0.06) 0%, transparent 70%);
+  pointer-events:none;
+}
+
+.brand-logo {
+  display:flex; align-items:center; gap:14px; margin-bottom:56px;
+}
+.brand-icon {
+  width:50px; height:50px; border-radius:14px;
+  background:linear-gradient(135deg,var(--saffron),var(--saffron-2));
+  display:flex; align-items:center; justify-content:center;
+  font-size:26px; box-shadow:var(--glow); flex-shrink:0;
+  animation:glow 4s ease-in-out infinite;
+}
+.brand-text { display:flex; flex-direction:column; }
+.brand-name { font-family:var(--font-display); font-size:24px; font-weight:500; color:var(--saffron-2); }
+.brand-sub  { font-size:10px; color:var(--fog); letter-spacing:2.5px; text-transform:uppercase; font-family:var(--font-mono); }
+
+.auth-headline {
+  font-family:var(--font-display); font-size:clamp(28px,3.5vw,44px);
+  font-weight:300; line-height:1.15; color:var(--snow); margin-bottom:18px;
+}
+.auth-headline em { color:var(--saffron); font-style:italic; }
+
+.auth-desc { font-size:15px; color:var(--mist); line-height:1.75; max-width:440px; margin-bottom:44px; }
+
+.feature-list { display:flex; flex-direction:column; gap:14px; }
+.feature-item {
+  display:flex; align-items:flex-start; gap:14px;
+  padding:16px 18px; background:var(--ink-2);
+  border:1px solid var(--line); border-radius:var(--radius-lg);
+  transition:border-color 0.2s;
+}
+.feature-item:hover { border-color:rgba(255,153,51,0.2); }
+.feature-item-icon { font-size:22px; flex-shrink:0; margin-top:1px; }
+.feature-item-text { display:flex; flex-direction:column; gap:3px; }
+.feature-item-title { font-size:13.5px; font-weight:600; color:var(--snow); }
+.feature-item-desc  { font-size:12px; color:var(--fog); line-height:1.5; }
+
+.auth-right {
+  width:460px; flex-shrink:0; background:var(--ink-2);
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center; padding:48px 44px;
+  position:relative; z-index:1;
+}
+
+.auth-form-wrap { width:100%; max-width:360px; }
+
+.auth-title { font-family:var(--font-display); font-size:28px; font-weight:500; color:var(--snow); text-align:center; margin-bottom:6px; }
+.auth-subtitle { font-size:13px; color:var(--fog); text-align:center; margin-bottom:28px; }
+
+.auth-tabs {
+  display:flex; background:var(--ink-3); border:1px solid var(--line);
+  border-radius:var(--radius); overflow:hidden; margin-bottom:24px;
+}
+.auth-tab {
+  flex:1; padding:10px; text-align:center; font-size:13px;
+  font-weight:500; cursor:pointer; background:transparent; border:none;
+  color:var(--fog); transition:all 0.2s; font-family:var(--font-body);
+}
+.auth-tab.active { background:var(--saffron-d); color:var(--saffron); }
+
+.msg-box {
+  padding:12px 14px; border-radius:var(--radius); font-size:13px;
+  line-height:1.5; margin-bottom:16px; display:none;
+}
+.msg-box.show { display:block; }
+.msg-box.error   { background:var(--ruby-d);    border:1px solid rgba(244,63,94,0.25);  color:var(--ruby); }
+.msg-box.success { background:var(--emerald-d); border:1px solid rgba(16,185,129,0.25); color:var(--emerald); }
+
+.google-btn {
+  width:100%; padding:12px; background:var(--ink-3);
+  border:1px solid var(--line-2); border-radius:var(--radius);
+  color:var(--snow); font-size:13.5px; font-weight:500;
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  transition:all 0.2s; margin-bottom:20px; cursor:pointer;
+  font-family:var(--font-body);
+}
+.google-btn:hover { border-color:rgba(255,153,51,0.3); color:var(--saffron-2); transform:translateY(-1px); }
+
+.form { display:flex; flex-direction:column; gap:14px; }
+
+.forgot-link { font-size:12px; color:var(--fog); text-align:right; cursor:pointer; transition:color 0.2s; }
+.forgot-link:hover { color:var(--saffron); }
+
+.terms-text { font-size:11px; color:var(--fog); text-align:center; line-height:1.6; margin-top:4px; }
+.terms-text a { color:var(--mist); }
+.terms-text a:hover { color:var(--saffron); }
+
+@media (max-width:900px) {
+  .auth-left { display:none; }
+  .auth-right { width:100%; padding:32px 24px; }
+}
+@media (max-width:480px) {
+  .auth-right { padding:24px 16px; }
+  .auth-title { font-size:22px; }
+  .btn-lg { padding:12px 20px; font-size:14px; }
+}
+</style>
+</head>
+<body>
+<div class="page-bg"></div>
+
+<div class="auth-left">
+  <div class="brand-logo">
+    <div class="brand-icon">🛍️</div>
+    <div class="brand-text">
+      <span class="brand-name">ShopMind AI</span>
+      <span class="brand-sub">India's Elite Shopping Agent</span>
+    </div>
+  </div>
+
+  <h1 class="auth-headline">
+    Shop smarter with<br/><em>AI that searches</em><br/>everything for you
+  </h1>
+
+  <p class="auth-desc">
+    Searches 20+ Indian platforms, expert review sites,
+    brand websites & communities — filters fake results and
+    finds only the best genuine products for Indian buyers.
+  </p>
+
+  <div class="feature-list">
+    <div class="feature-item">
+      <span class="feature-item-icon">🔍</span>
+      <div class="feature-item-text">
+        <span class="feature-item-title">Full Internet Search</span>
+        <span class="feature-item-desc">Not just e-commerce — reviews, brands, Reddit, everything</span>
+      </div>
+    </div>
+    <div class="feature-item">
+      <span class="feature-item-icon">🛡️</span>
+      <div class="feature-item-text">
+        <span class="feature-item-title">Fake Site Detection</span>
+        <span class="feature-item-desc">Filters spam, paid reviews & unreliable sellers automatically</span>
+      </div>
+    </div>
+    <div class="feature-item">
+      <span class="feature-item-icon">📊</span>
+      <div class="feature-item-text">
+        <span class="feature-item-title">Smart Scoring</span>
+        <span class="feature-item-desc">Ranked by value, performance, reviews, brand & warranty</span>
+      </div>
+    </div>
+    <div class="feature-item">
+      <span class="feature-item-icon">💾</span>
+      <div class="feature-item-text">
+        <span class="feature-item-title">History Saved</span>
+        <span class="feature-item-desc">All searches saved — access from any device anytime</span>
+      </div>
+    </div>
+  </div>
+
+
+</div>
+
+<div class="auth-right">
+  <div class="auth-form-wrap anim-fade-up">
+    <div class="auth-title">Welcome back 👋</div>
+    <div class="auth-subtitle">Sign in to your account or create a new one</div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabSignin" onclick="switchTab('signin')">Sign In</button>
+      <button class="auth-tab" id="tabSignup" onclick="switchTab('signup')">Sign Up</button>
+    </div>
+
+    <div class="msg-box" id="msgBox"></div>
+
+
+
+    <!-- Sign In Form -->
+    <form class="form" id="signinForm" onsubmit="e=>e.preventDefault()">
+      <div class="input-group">
+        <label class="input-label">Email Address</label>
+        <input class="input" type="email" id="siEmail" placeholder="you@example.com" autocomplete="email"/>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Password</label>
+        <input class="input" type="password" id="siPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')handleSignin()"/>
+      </div>
+      <div class="forgot-link" onclick="handleForgot()">Forgot password?</div>
+      <button class="btn btn-primary btn-full btn-lg" id="signinBtn" onclick="handleSignin()">
+        Sign In →
+      </button>
+    </form>
+
+    <!-- Sign Up Form -->
+    <form class="form" id="signupForm" style="display:none" onsubmit="e=>e.preventDefault()">
+      <div class="input-group">
+        <label class="input-label">Full Name</label>
+        <input class="input" type="text" id="suName" placeholder="Your full name"/>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Email Address</label>
+        <input class="input" type="email" id="suEmail" placeholder="you@example.com" autocomplete="email"/>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Password (min 6 characters)</label>
+        <input class="input" type="password" id="suPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')handleSignup()"/>
+      </div>
+      <button class="btn btn-primary btn-full btn-lg" id="signupBtn" onclick="handleSignup()">
+        Create Account →
+      </button>
+      <p class="terms-text">By signing up you agree to our <a href="#">Terms</a> & <a href="#">Privacy Policy</a></p>
+    </form>
+
+    <!-- Maker Credit -->
+    <div style="margin-top:28px;padding-top:20px;border-top:1px solid var(--line);text-align:center">
+      <div style="font-size:9px;color:var(--fog);font-family:var(--font-mono);letter-spacing:2px;text-transform:uppercase">Built &amp; Designed by</div>
+      <div style="font-size:17px;font-weight:600;color:var(--saffron-2);font-family:var(--font-display);margin-top:5px">Aditya Singh</div>
+      <div style="font-size:10px;color:var(--fog);font-family:var(--font-mono);margin-top:4px">ShopMind AI &copy; 2025</div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/auth.js"></script>
+<script>
+// Check if already logged in
+redirectIfLoggedIn('/dashboard');
+
+function switchTab(tab) {
+  const isSignin = tab === 'signin';
+  document.getElementById('tabSignin').classList.toggle('active', isSignin);
+  document.getElementById('tabSignup').classList.toggle('active', !isSignin);
+  document.getElementById('signinForm').style.display = isSignin ? 'flex' : 'none';
+  document.getElementById('signupForm').style.display = isSignin ? 'none' : 'flex';
+  hideMsg();
+}
+
+function showMsg(text, type = 'error') {
+  const box = document.getElementById('msgBox');
+  box.textContent = text;
+  box.className = `msg-box ${type} show`;
+}
+function hideMsg() {
+  document.getElementById('msgBox').className = 'msg-box';
+}
+
+async function handleGoogle() {
+  try { await loginWithGoogle(); }
+  catch (e) { showMsg(e.message); }
+}
+
+async function handleSignin() {
+  const email = document.getElementById('siEmail').value.trim();
+  const pass  = document.getElementById('siPass').value;
+  if (!email || !pass) return showMsg('Please fill in all fields');
+  const btn = document.getElementById('signinBtn');
+  btn.disabled = true; btn.textContent = 'Signing in...';
+  try {
+    await loginWithEmail(email, pass);
+    showMsg('Welcome back! Redirecting...', 'success');
+    setTimeout(() => window.location.href = '/dashboard', 800);
+  } catch (e) {
+    showMsg(e.message);
+    btn.disabled = false; btn.textContent = 'Sign In →';
+  }
+}
+
+async function handleSignup() {
+  const name  = document.getElementById('suName').value.trim();
+  const email = document.getElementById('suEmail').value.trim();
+  const pass  = document.getElementById('suPass').value;
+  if (!name || !email || !pass) return showMsg('Please fill in all fields');
+  if (pass.length < 6) return showMsg('Password must be at least 6 characters');
+  const btn = document.getElementById('signupBtn');
+  btn.disabled = true; btn.textContent = 'Creating account...';
+  try {
+    const data = await signupWithEmail(name, email, pass);
+    if (data?.user?.identities?.length === 0) {
+      showMsg('Email already registered. Please sign in.');
+    } else {
+      showMsg('Account created! Check your email to verify, then sign in.', 'success');
+    }
+    btn.disabled = false; btn.textContent = 'Create Account →';
+  } catch (e) {
+    showMsg(e.message);
+    btn.disabled = false; btn.textContent = 'Create Account →';
+  }
+}
+
+async function handleForgot() {
+  const email = document.getElementById('siEmail').value.trim();
+  if (!email) return showMsg('Enter your email above first');
+  try {
+    await forgotPassword(email);
+    showMsg('Password reset email sent!', 'success');
+  } catch (e) { showMsg(e.message); }
+}
+</script>
+
+</body>
+</html>

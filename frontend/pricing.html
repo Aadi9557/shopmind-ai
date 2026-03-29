@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ShopMind AI — Pricing</title>
+<link rel="stylesheet" href="css/style.css"/>
+<style>
+html,body{min-height:100%;}
+.page{display:flex;flex-direction:column;min-height:100vh;position:relative;z-index:1;}
+.page-header{display:flex;align-items:center;justify-content:space-between;padding:14px 32px;background:rgba(8,8,17,0.92);border-bottom:1px solid var(--line);backdrop-filter:blur(20px);position:sticky;top:0;z-index:50;}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.logo-icon{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--saffron),var(--saffron-2));display:flex;align-items:center;justify-content:center;font-size:17px;}
+.logo-name{font-family:var(--font-display);font-size:18px;font-weight:500;color:var(--saffron-2);}
+.page-content{flex:1;max-width:900px;margin:0 auto;width:100%;padding:48px 24px;}
+.pricing-header{text-align:center;margin-bottom:48px;}
+.pricing-title{font-family:var(--font-display);font-size:clamp(28px,4vw,42px);font-weight:300;color:var(--snow);line-height:1.2;margin-bottom:12px;}
+.pricing-title em{color:var(--saffron);font-style:italic;}
+.pricing-sub{font-size:15px;color:var(--mist);max-width:480px;margin:0 auto;line-height:1.75;}
+.plans-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:48px;}
+.plan-card{background:var(--ink-2);border:1px solid var(--line);border-radius:20px;padding:32px;display:flex;flex-direction:column;gap:20px;position:relative;transition:all 0.3s;}
+.plan-card.popular{border-color:rgba(255,153,51,0.4);box-shadow:0 0 40px rgba(255,153,51,0.1);}
+.popular-badge{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--saffron),var(--saffron-2));color:var(--ink);padding:5px 20px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;}
+.plan-name{font-size:14px;font-weight:600;color:var(--mist);letter-spacing:1px;text-transform:uppercase;font-family:var(--font-mono);}
+.plan-price{display:flex;align-items:flex-end;gap:4px;}
+.plan-amount{font-family:var(--font-display);font-size:48px;font-weight:500;color:var(--snow);line-height:1;}
+.plan-currency{font-size:20px;color:var(--mist);margin-bottom:8px;}
+.plan-period{font-size:13px;color:var(--fog);margin-bottom:6px;}
+.plan-desc{font-size:13px;color:var(--fog);line-height:1.6;}
+.plan-features{display:flex;flex-direction:column;gap:10px;}
+.feature-item{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--mist);}
+.feature-icon{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
+.feature-yes{background:var(--emerald-d);color:var(--emerald);}
+.feature-no{background:var(--ink-4);color:var(--fog);}
+.plan-btn{margin-top:auto;}
+.searches-info{font-size:12px;color:var(--fog);text-align:center;font-family:var(--font-mono);}
+.faq-section{margin-top:48px;}
+.faq-title{font-family:var(--font-display);font-size:24px;color:var(--saffron-2);margin-bottom:24px;text-align:center;}
+.faq-item{background:var(--ink-2);border:1px solid var(--line);border-radius:var(--radius-lg);padding:20px 24px;margin-bottom:12px;}
+.faq-q{font-size:14px;font-weight:600;color:var(--snow);margin-bottom:8px;}
+.faq-a{font-size:13px;color:var(--mist);line-height:1.7;}
+.current-plan-banner{background:linear-gradient(135deg,rgba(255,153,51,0.1),rgba(255,153,51,0.05));border:1px solid rgba(255,153,51,0.2);border-radius:var(--radius-lg);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;}
+.cpb-info{display:flex;flex-direction:column;gap:4px;}
+.cpb-label{font-size:11px;color:var(--fog);font-family:var(--font-mono);letter-spacing:1px;text-transform:uppercase;}
+.cpb-value{font-size:15px;font-weight:600;color:var(--snow);}
+@media(max-width:600px){
+  .plans-grid{grid-template-columns:1fr;}
+  .page-content{padding:24px 16px;}
+  .pricing-title{font-size:26px;}
+  .plan-amount{font-size:40px;}
+}
+</style>
+</head>
+<body>
+<div class="page-bg"></div>
+
+<div class="page">
+  <header class="page-header">
+    <a class="logo" href="/dashboard">
+      <div class="logo-icon">🛍️</div>
+      <span class="logo-name">ShopMind AI</span>
+    </a>
+    <div style="display:flex;gap:10px;align-items:center">
+      <a class="btn btn-ghost btn-sm" href="/dashboard">← Back to Search</a>
+    </div>
+  </header>
+
+  <div class="page-content">
+    <!-- Current Plan Banner -->
+    <div class="current-plan-banner" id="planBanner" style="display:none">
+      <div class="cpb-info">
+        <span class="cpb-label">Your Current Plan</span>
+        <span class="cpb-value" id="planName">Loading...</span>
+      </div>
+      <div class="cpb-info" style="text-align:right">
+        <span class="cpb-label">Searches Today</span>
+        <span class="cpb-value" id="searchCount">0 / 10</span>
+      </div>
+    </div>
+
+    <div class="pricing-header">
+      <h1 class="pricing-title">Simple, <em>honest</em> pricing</h1>
+      <p class="pricing-sub">Start free. Upgrade when you need more. No hidden charges.</p>
+    </div>
+
+    <div class="plans-grid">
+      <!-- FREE PLAN -->
+      <div class="plan-card">
+        <div class="plan-name">Free</div>
+        <div class="plan-price">
+          <span class="plan-currency">₹</span>
+          <span class="plan-amount">0</span>
+          <span class="plan-period">/forever</span>
+        </div>
+        <p class="plan-desc">Try ShopMind AI and find great deals — completely free.</p>
+        <div class="plan-features">
+          <div class="feature-item"><div class="feature-icon feature-yes">✓</div><span><strong>10 searches per day</strong></span></div>
+          <div class="feature-item"><div class="feature-icon feature-yes">✓</div><span>20+ Indian platforms</span></div>
+          <div class="feature-item"><div class="feature-icon feature-yes">✓</div><span>AI product scoring</span></div>
+          <div class="feature-item"><div class="feature-icon feature-yes">✓</div><span>Direct buy links</span></div>
+          <div class="feature-item"><div class="feature-icon feature-yes">✓</div><span>Basic search history</span></div>
+          <div class="feature-item"><div class="feature-icon feature-no">✗</div><span style="color:var(--fog)">Unlimited searches</span></div>
+          <div class="feature-item"><div class="feature-icon feature-no">✗</div><span style="color:var(--fog)">Personalised AI results</span></div>
+          <div class="feature-item"><div class="feature-icon feature-no">✗</div><span style="color:var(--fog)">Full search history</span></div>
+          <div class="feature-item"><div class="feature-icon feature-no">✗</div><span style="color:var(--fog)">Price watchlist</span></div>
+        </div>
+        <a class="btn btn-ghost btn-full plan-btn" href="/dashboard">Continue Free →</a>
+      </div>
+
+      <!-- PRO PLAN -->
+      <div class="plan-card popular">
+        <div class="popular-badge">⭐ Best Value</div>
+        <div class="plan-name" style="color:var(--saffron)">Pro</div>
+        <div class="plan-price">
+          <span class="plan-currency" style="color:var(--saffron)">₹</span>
+          <span class="plan-amount" style="color:var(--saffron)">99</span>
+          <span class="plan-period">/month</span>
+        </div>
+        <p class="plan-desc">For smart shoppers who want the best deals — every single day, without limits.</p>
+        <div class="plan-features">
+          <div class="feature-item"><div class="feature-icon feature-yes">✓</div><span><strong>Unlimited searches — no daily limit</strong></span></div>
+          <div class="feature-item"><div class="feature-icon feature-yes">✓</div><span>20+ Indian platforms</span></div>
+          <div class="feature-item"><div class="feature-icon feature-yes">✓</div><span>AI product scoring</span></div>
+          <div class="feature-item"><div class="feature-icon feature-yes">✓</div><span>Direct buy links</span></div>
+          <div class="feature-item"><div class="feature-icon feature-yes">✓</div><span><strong>AI learns your preferences</strong> — results get smarter every search</span></div>
+          <div class="feature-item"><div class="feature-icon feature-yes">✓</div><span><strong>Full search history</strong> — access all past searches anytime</span></div>
+          <div class="feature-item"><div class="feature-icon feature-yes">✓</div><span><strong>Price watchlist</strong> — save products and track their prices</span></div>
+          <div class="feature-item"><div class="feature-icon feature-yes">✓</div><span><strong>Faster results</strong> — priority cache for instant searches</span></div>
+          <div class="feature-item"><div class="feature-icon feature-yes">✓</div><span>Early access to new features</span></div>
+        </div>
+        <button class="btn btn-primary btn-full plan-btn" onclick="upgradePro()" id="upgradeBtn">
+          Upgrade to Pro — ₹99/month →
+        </button>
+        <p class="searches-info">Cancel anytime • UPI / Card / NetBanking</p>
+      </div>
+    </div>
+
+    <!-- FAQ -->
+    <div class="faq-section">
+      <div class="faq-title">Frequently Asked Questions</div>
+      <div class="faq-item">
+        <div class="faq-q">What happens when I use all 10 free searches?</div>
+        <div class="faq-a">Your searches reset every day at midnight. So you get 10 fresh searches every single day for free. If you need more, upgrade to Pro for unlimited.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">How does the AI learn my preferences?</div>
+        <div class="faq-a">Every search you make, ShopMind AI learns your budget range, favourite categories and brands. Pro users get fully personalised results — the more you search, the smarter it gets.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">What is the price watchlist?</div>
+        <div class="faq-a">Pro users can save any product to their watchlist to track it over time. See how prices change across platforms and decide the perfect time to buy.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Can I cancel anytime?</div>
+        <div class="faq-a">Yes! You can cancel your Pro subscription anytime. You will keep Pro access until the end of the month you paid for. No questions asked.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">What payment methods are accepted?</div>
+        <div class="faq-a">We accept UPI (GPay, PhonePe, Paytm), all major debit/credit cards, and NetBanking through Razorpay — India's most trusted payment gateway.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script src="js/auth.js"></script>
+<script>
+(async () => {
+  const session = await requireAuth();
+  if (!session) return;
+
+  // Load current plan
+  try {
+    const token = await getToken();
+    const res = await fetch('/api/payments/plan', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('planBanner').style.display = 'flex';
+      document.getElementById('planName').textContent = data.plan === 'pro' ? '⭐ Pro Plan' : '🆓 Free Plan';
+      document.getElementById('searchCount').textContent = data.plan === 'pro'
+        ? 'Unlimited'
+        : `${data.searches_today} / ${data.free_limit}`;
+
+      // Update upgrade button if already pro
+      if (data.is_pro) {
+        const btn = document.getElementById('upgradeBtn');
+        btn.textContent = '✅ You are on Pro!';
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+      }
+    }
+  } catch {}
+})();
+
+async function upgradePro() {
+  const btn = document.getElementById('upgradeBtn');
+  btn.disabled = true;
+  btn.textContent = 'Processing...';
+
+  try {
+    const token = await getToken();
+
+    // Track upgrade click — tells us demand before payment is live
+    await fetch('/api/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({
+        event_type: 'upgrade_click',
+        metadata: { page: 'pricing', timestamp: new Date().toISOString() }
+      })
+    }).catch(() => {});
+    const session = await getSession();
+    const user = session?.user;
+
+    const res = await fetch('/api/payments/create-order', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const data = await res.json();
+
+    if (!data.razorpay_configured || !data.success) {
+      alert('Payment system is being set up! We will notify you soon.');
+      btn.disabled = false;
+      btn.textContent = 'Upgrade to Pro — ₹99/month →';
+      return;
+    }
+
+    // Open Razorpay checkout
+    const options = {
+      key:         data.key_id,
+      amount:      data.order.amount,
+      currency:    'INR',
+      name:        'ShopMind AI',
+      description: 'Pro Plan — Unlimited Searches',
+      order_id:    data.order.id,
+      prefill: {
+        email: user?.email || '',
+        name:  user?.user_metadata?.full_name || ''
+      },
+      theme: { color: '#ff9933' },
+      handler: async function(response) {
+        // Verify payment on backend
+        const verifyRes = await fetch('/api/payments/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({
+            razorpay_order_id:   response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature:  response.razorpay_signature
+          })
+        });
+        const verifyData = await verifyRes.json();
+        if (verifyData.success) {
+          alert('🎉 Welcome to Pro! Unlimited searches activated.');
+          window.location.reload();
+        } else {
+          alert('Payment verification failed. Contact support.');
+        }
+      },
+      modal: {
+        ondismiss: function() {
+          btn.disabled = false;
+          btn.textContent = 'Upgrade to Pro — ₹99/month →';
+        }
+      }
+    };
+
+    const rzp = new Razorpay(options);
+    rzp.open();
+
+  } catch (e) {
+    alert('Something went wrong. Please try again.');
+    btn.disabled = false;
+    btn.textContent = 'Upgrade to Pro — ₹99/month →';
+  }
+}
+</script>
+
+<!-- Footer Credit -->
+<div style="text-align:center;padding:20px 16px 28px;border-top:1px solid var(--line);margin-top:16px">
+  <div style="font-size:9px;color:var(--fog);font-family:var(--font-mono);letter-spacing:2px;text-transform:uppercase">Built &amp; Designed by</div>
+  <div style="font-size:16px;font-weight:600;color:var(--saffron-2);font-family:var(--font-display);margin-top:4px">Aditya Singh</div>
+  <div style="font-size:10px;color:var(--fog);font-family:var(--font-mono);margin-top:4px;opacity:0.6">ShopMind AI &copy; 2025</div>
+</div>
+</body>
+</html>

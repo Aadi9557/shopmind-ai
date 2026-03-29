@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>ShopMind AI — Search</title>
+<link rel="stylesheet" href="css/style.css"/>
+<style>
+/* ═══════════════════════════════════════════
+   LAYOUT — Clean, no hacks, works everywhere
+   ═══════════════════════════════════════════ */
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+/* App = full screen flex column */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh; /* dynamic viewport for mobile browsers */
+}
+
+/* Header — never shrinks */
+.app-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: rgba(8,8,17,0.97);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(20px);
+  z-index: 50;
+}
+
+/* Body = fills all remaining height */
+.app-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Sidebar */
+.quick-panel {
+  width: 170px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--line);
+  background: var(--ink-2);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 16px 12px;
+  overflow-y: auto;
+}
+.quick-panel::-webkit-scrollbar { width:3px; }
+.quick-panel::-webkit-scrollbar-thumb { background:var(--line); border-radius:3px; }
+
+/* Main chat column */
+.main-chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* THE ONLY SCROLL AREA */
+.messages {
+  flex: 1;
+  min-height: 0; /* KEY: constrains height so overflow-y works */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  scroll-behavior: smooth;
+  padding: 16px 24px 140px;
+  display: block;
+  flex-direction: column;
+  gap: 10px;
+}
+.messages::-webkit-scrollbar { width:4px; }
+.messages::-webkit-scrollbar-thumb { background:var(--line); border-radius:4px; }
+
+/* Input — flex-shrink:0 keeps it at bottom (no sticky needed inside flex) */
+.input-zone {
+  flex-shrink: 0;
+  border-top: 1px solid var(--line);
+  background: rgba(8,8,17,0.97);
+  backdrop-filter: blur(20px);
+  padding: 12px 24px 16px;
+  z-index: 40;
+}
+
+/* ═══════════════════════════════════════════
+   HEADER COMPONENTS
+   ═══════════════════════════════════════════ */
+.header-brand { display:flex; align-items:center; gap:10px; }
+.header-icon { width:32px; height:32px; border-radius:9px; background:linear-gradient(135deg,var(--saffron),var(--saffron-2)); display:flex; align-items:center; justify-content:center; font-size:17px; box-shadow:var(--glow); }
+.header-name { font-family:var(--font-display); font-size:18px; font-weight:500; color:var(--saffron-2); }
+.header-controls { display:flex; align-items:center; gap:8px; }
+.lang-toggle { display:flex; background:var(--ink-3); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+.lang-btn { padding:5px 11px; font-size:10px; background:transparent; color:var(--fog); border:none; font-family:var(--font-mono); text-transform:uppercase; cursor:pointer; transition:all 0.2s; }
+.lang-btn.active { background:var(--saffron-d); color:var(--saffron); }
+.status-dot-wrap { display:flex; align-items:center; gap:5px; padding:5px 11px; border:1px solid rgba(16,185,129,0.25); border-radius:16px; font-size:10px; color:var(--emerald); font-family:var(--font-mono); }
+.status-dot { width:5px; height:5px; border-radius:50%; background:var(--emerald); animation:pulse 2s ease-in-out infinite; }
+.user-menu-wrap { position:relative; }
+.user-btn { display:flex; align-items:center; gap:8px; padding:6px 12px 6px 8px; background:var(--ink-3); border:1px solid var(--line); border-radius:18px; cursor:pointer; transition:all 0.2s; }
+.user-btn:hover { border-color:rgba(255,153,51,0.3); }
+.user-initial { width:24px; height:24px; border-radius:50%; background:linear-gradient(135deg,var(--saffron),var(--saffron-2)); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--ink); }
+.user-display-name { font-size:12.5px; color:var(--mist); }
+.dropdown { position:absolute; top:calc(100% + 8px); right:0; background:var(--ink-2); border:1px solid var(--line-2); border-radius:var(--radius-lg); overflow:hidden; min-width:180px; display:none; z-index:200; box-shadow:var(--shadow-lg); }
+.dropdown.open { display:block; animation:fadeUp 0.2s ease; }
+.dropdown-item { padding:11px 16px; font-size:13px; color:var(--mist); cursor:pointer; display:flex; align-items:center; gap:9px; transition:all 0.15s; }
+.dropdown-item:hover { background:var(--ink-3); color:var(--snow); }
+.dropdown-item.danger:hover { color:var(--ruby); }
+.dropdown-divider { height:1px; background:var(--line); }
+
+/* ═══════════════════════════════════════════
+   HISTORY DRAWER
+   ═══════════════════════════════════════════ */
+.history-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:350; display:none; }
+.history-overlay.show { display:block; }
+.history-drawer { position:fixed; left:0; top:0; bottom:0; width:280px; background:var(--ink-2); border-right:1px solid var(--line); z-index:400; transform:translateX(-100%); transition:transform 0.28s ease; display:flex; flex-direction:column; }
+.history-drawer.open { transform:translateX(0); box-shadow:var(--shadow-lg); }
+.history-drawer-header { display:flex; align-items:center; justify-content:space-between; padding:16px 16px 12px; border-bottom:1px solid var(--line); flex-shrink:0; }
+.history-drawer-title { font-size:14px; font-weight:600; color:var(--snow); }
+.history-drawer-body { flex:1; overflow-y:auto; padding:8px; display:flex; flex-direction:column; gap:2px; }
+.hist-section-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--fog); font-family:var(--font-mono); padding:10px 8px 4px; }
+.hist-entry { display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:var(--radius); cursor:pointer; border:1px solid transparent; transition:all 0.15s; }
+.hist-entry:hover { background:var(--ink-3); border-color:var(--line); }
+.hist-entry-icon { font-size:13px; flex-shrink:0; opacity:0.6; }
+.hist-entry-info { flex:1; min-width:0; }
+.hist-entry-q { font-size:12.5px; color:var(--mist); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hist-entry-t { font-size:10px; color:var(--fog); font-family:var(--font-mono); margin-top:1px; }
+.hist-entry-actions { display:flex; gap:2px; flex-shrink:0; opacity:0; transition:opacity 0.15s; }
+.hist-entry:hover .hist-entry-actions { opacity:1; }
+.hist-action-btn { width:24px; height:24px; border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:11px; background:transparent; border:1px solid transparent; cursor:pointer; transition:all 0.15s; color:var(--fog); }
+.hist-action-btn:hover { background:var(--ink-4); border-color:var(--line); color:var(--mist); }
+.hist-action-btn.del:hover { background:var(--ruby-d); border-color:rgba(244,63,94,0.2); color:var(--ruby); }
+
+/* ═══════════════════════════════════════════
+   WELCOME SCREEN
+   ═══════════════════════════════════════════ */
+.welcome-screen { display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:20px; min-height:100%; padding:24px; animation:fadeUp 0.5s ease; }
+.welcome-icon { font-size:60px; animation:float 3.5s ease-in-out infinite; filter:drop-shadow(0 0 24px rgba(255,153,51,0.3)); }
+.welcome-title { font-family:var(--font-display); font-size:clamp(24px,4vw,42px); font-weight:300; line-height:1.15; }
+.welcome-title em { color:var(--saffron); font-style:italic; }
+.welcome-desc { font-size:14px; color:var(--mist); max-width:420px; line-height:1.75; }
+.suggestion-chips { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; max-width:520px; }
+.chip { padding:8px 16px; background:var(--ink-2); border:1px solid var(--line-2); border-radius:22px; font-size:12px; color:var(--mist); cursor:pointer; transition:all 0.2s; }
+.chip:hover { border-color:rgba(255,153,51,0.4); color:var(--saffron-2); background:var(--saffron-d); }
+
+/* ═══════════════════════════════════════════
+   SEARCH BLOCKS (accordion results)
+   ═══════════════════════════════════════════ */
+.search-block { background:var(--ink-2); border:1px solid var(--line); border-radius:var(--radius-lg); overflow:hidden; transition:border-color 0.2s; }
+.search-block:hover { border-color:rgba(255,153,51,0.2); }
+.search-block-header { display:flex; align-items:center; gap:12px; padding:14px 18px; cursor:pointer; user-select:none; }
+.search-block-icon { width:32px; height:32px; border-radius:9px; background:var(--saffron-d); border:1px solid rgba(255,153,51,0.2); display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
+.search-block-info { flex:1; min-width:0; }
+.search-block-query { font-size:13.5px; font-weight:600; color:var(--snow); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.search-block-meta { font-size:10px; color:var(--fog); font-family:var(--font-mono); margin-top:2px; display:flex; gap:8px; align-items:center; }
+.search-block-arrow { font-size:10px; color:var(--fog); transition:transform 0.25s; flex-shrink:0; }
+.search-block.open .search-block-arrow { transform:rotate(180deg); }
+.search-block-body { display:none; padding:0 18px 18px; border-top:1px solid var(--line); }
+.search-block.open .search-block-body { display:block; }
+
+/* ═══════════════════════════════════════════
+   MESSAGES (chat bubbles for errors/typing)
+   ═══════════════════════════════════════════ */
+.msg { display:flex; gap:12px; animation:fadeUp 0.3s ease both; }
+.msg.user { flex-direction:row-reverse; }
+.msg-avatar { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; }
+.ai-avatar { background:linear-gradient(135deg,var(--saffron),var(--saffron-2)); }
+.user-avatar { background:var(--ink-4); border:1px solid var(--line); font-size:13px; font-weight:700; color:var(--saffron); }
+.msg-bubble { max-width:75%; padding:13px 17px; border-radius:14px; font-size:13.5px; line-height:1.75; }
+.ai-bubble { background:var(--ink-2); border:1px solid var(--line); border-radius:4px 14px 14px 14px; }
+.user-bubble { background:linear-gradient(135deg,rgba(255,153,51,0.15),rgba(255,179,102,0.08)); border:1px solid rgba(255,153,51,0.22); border-radius:14px 4px 14px 14px; }
+.typing-text { font-size:11px; color:var(--fog); font-family:var(--font-mono); margin-top:8px; }
+
+/* ═══════════════════════════════════════════
+   RESULTS
+   ═══════════════════════════════════════════ */
+.results-wrap { display:flex; flex-direction:column; gap:16px; width:100%; }
+.results-header { display:flex; align-items:flex-start; justify-content:space-between; padding-bottom:12px; border-bottom:1px solid var(--line); }
+.results-title { font-family:var(--font-display); font-size:20px; color:var(--saffron-2); line-height:1.2; }
+.results-meta { display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; }
+.search-summary { font-size:12.5px; color:var(--fog); line-height:1.7; }
+.products-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px; }
+.product-card { padding:18px; display:flex; flex-direction:column; gap:13px; position:relative; overflow:hidden; }
+.product-card::after { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,transparent,var(--saffron),transparent); opacity:0; transition:opacity 0.3s; }
+.product-card:hover::after { opacity:1; }
+.product-card-header { display:flex; align-items:flex-start; gap:12px; }
+.product-card-title { flex:1; }
+.product-name { font-size:14px; font-weight:600; color:var(--snow); line-height:1.3; }
+.product-brand { font-size:11px; color:var(--fog); margin-top:3px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.price-main { font-family:var(--font-display); font-size:26px; font-weight:500; color:var(--saffron); line-height:1; }
+.price-range { font-size:10px; color:var(--fog); font-family:var(--font-mono); display:block; margin-top:2px; }
+.price-platform { font-size:11px; color:var(--fog); display:block; }
+.specs-row { display:flex; flex-wrap:wrap; gap:5px; }
+.scores-section { display:flex; flex-direction:column; gap:5px; }
+.overall-score { width:fit-content; }
+.pros-cons { display:flex; flex-direction:column; gap:6px; }
+.tags-row { display:flex; flex-wrap:wrap; gap:5px; }
+.product-summary { font-size:12px; color:var(--fog); line-height:1.65; }
+.product-warranty { font-size:11px; color:var(--fog); }
+.buy-section { display:flex; flex-direction:column; gap:8px; }
+.link-section-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--fog); font-family:var(--font-mono); }
+.links-row { display:flex; gap:7px; flex-wrap:wrap; }
+.top-pick-banner { background:linear-gradient(135deg,rgba(255,153,51,0.08),rgba(255,153,51,0.04)); border:1px solid rgba(255,153,51,0.2); border-radius:var(--radius-lg); padding:16px 18px; display:flex; flex-direction:column; gap:8px; }
+.top-pick-name { font-size:15px; font-weight:600; color:var(--snow); }
+.top-pick-reason { font-size:13px; color:var(--mist); line-height:1.65; }
+.insight-banner { background:var(--ink-3); border:1px solid var(--line); border-radius:var(--radius); padding:12px 14px; font-size:12px; color:var(--fog); font-family:var(--font-mono); display:flex; gap:8px; }
+.sources-section { display:flex; flex-direction:column; gap:8px; }
+.sources-list { display:flex; flex-wrap:wrap; gap:5px; }
+
+/* ═══════════════════════════════════════════
+   INPUT BAR
+   ═══════════════════════════════════════════ */
+.input-bar { display:flex; align-items:center; gap:10px; background:var(--ink-3); border:1px solid var(--line-2); border-radius:var(--radius-lg); padding:10px 14px; transition:all 0.2s; }
+.input-bar:focus-within { border-color:rgba(255,153,51,0.4); box-shadow:0 0 0 3px rgba(255,153,51,0.05); }
+#searchInput { flex:1; background:transparent; border:none; color:var(--snow); font-size:14px; font-family:var(--font-body); resize:none; min-height:22px; max-height:90px; line-height:1.6; }
+#searchInput::placeholder { color:var(--fog); }
+.send-btn { width:38px; height:38px; border-radius:9px; background:linear-gradient(135deg,var(--saffron),var(--saffron-2)); color:var(--ink); font-size:17px; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.2s; }
+.send-btn:hover { transform:scale(1.08); box-shadow:0 4px 16px rgba(255,153,51,0.3); }
+.send-btn:disabled { opacity:0.35; cursor:not-allowed; transform:none; box-shadow:none; }
+.input-hint { margin-top:8px; text-align:center; font-size:10px; color:var(--fog); font-family:var(--font-mono); }
+
+/* ═══════════════════════════════════════════
+   SIDEBAR COMPONENTS
+   ═══════════════════════════════════════════ */
+.quick-btn { display:flex; align-items:center; gap:7px; padding:7px 9px; border-radius:7px; background:transparent; border:1px solid transparent; color:var(--fog); font-size:11.5px; font-family:var(--font-body); cursor:pointer; transition:all 0.18s; text-align:left; width:100%; }
+.quick-btn:hover { background:var(--saffron-d); border-color:rgba(255,153,51,0.2); color:var(--saffron-2); }
+.platform-grid { display:grid; grid-template-columns:1fr 1fr; gap:3px; }
+.platform-tag { padding:4px 5px; border-radius:5px; font-size:8.5px; background:var(--ink-3); border:1px solid var(--line); color:var(--fog); text-align:center; font-family:var(--font-mono); cursor:pointer; transition:all 0.2s; }
+.platform-tag:hover { color:var(--saffron); border-color:rgba(255,153,51,0.2); }
+.quick-btn.active-cat { background:var(--saffron-d); border-color:rgba(255,153,51,0.35); color:var(--saffron); }
+.platform-tag.active-plat { background:var(--saffron-d); border-color:rgba(255,153,51,0.35); color:var(--saffron); }
+.cat-group { display:flex; flex-direction:column; gap:2px; }
+.cat-header { display:flex; align-items:center; justify-content:space-between; padding:8px 11px; border-radius:8px; cursor:pointer; background:var(--ink-3); border:1px solid var(--line); color:var(--mist); font-size:12px; font-weight:600; font-family:var(--font-body); transition:all 0.2s; user-select:none; width:100%; }
+.cat-header:hover { border-color:rgba(255,153,51,0.3); color:var(--saffron-2); }
+.cat-header.open { background:var(--saffron-d); border-color:rgba(255,153,51,0.3); color:var(--saffron); }
+.cat-arrow { font-size:9px; transition:transform 0.25s; }
+.cat-header.open .cat-arrow { transform:rotate(180deg); }
+.cat-sub { display:none; flex-direction:column; gap:2px; padding-left:10px; margin-left:6px; border-left:2px solid rgba(255,153,51,0.2); margin-top:2px; }
+.cat-sub.open { display:flex !important; }
+.sub-btn { display:flex; align-items:center; gap:7px; padding:6px 10px; border-radius:6px; border:1px solid transparent; background:transparent; color:var(--fog); font-size:11.5px; font-family:var(--font-body); cursor:pointer; transition:all 0.18s; text-align:left; width:100%; }
+.sub-btn:hover { background:var(--saffron-d); border-color:rgba(255,153,51,0.15); color:var(--saffron-2); }
+.sub-btn.active-cat { background:var(--saffron-d); border-color:rgba(255,153,51,0.3); color:var(--saffron); }
+
+/* ═══════════════════════════════════════════
+   MOBILE BOTTOM NAV
+   ═══════════════════════════════════════════ */
+.mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 200;
+  background: rgba(14,14,26,0.98);
+  border-top: 1px solid var(--line);
+  backdrop-filter: blur(20px);
+  padding: 6px 0;
+  padding-bottom: max(6px, env(safe-area-inset-bottom));
+}
+.mobile-nav-items { display:flex; justify-content:space-around; align-items:center; }
+.mobile-nav-btn { display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 16px; border:none; background:transparent; color:var(--fog); font-size:10px; font-family:var(--font-body); cursor:pointer; transition:all 0.2s; }
+.mobile-nav-btn.active { color:var(--saffron); }
+.mobile-nav-btn span:first-child { font-size:20px; }
+
+/* Mobile sheets */
+.mobile-sheet-overlay { display:none; position:fixed; inset:0; z-index:300; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); }
+.mobile-sheet-overlay.open { display:block; }
+.mobile-sheet { position:fixed; bottom:0; left:0; right:0; z-index:301; background:var(--ink-2); border-top:1px solid var(--line); border-radius:20px 20px 0 0; max-height:80vh; overflow-y:auto; transform:translateY(100%); transition:transform 0.3s ease; padding-bottom:max(16px,env(safe-area-inset-bottom)); touch-action:pan-y; }
+.mobile-sheet.open { transform:translateY(0); }
+.mobile-sheet-handle { width:36px; height:12px; display:flex; align-items:center; justify-content:center; margin:8px auto 8px; cursor:pointer; }
+.mobile-sheet-handle::after { content:''; width:36px; height:4px; background:var(--line-2); border-radius:4px; }
+.mobile-sheet-title { font-size:14px; font-weight:600; color:var(--snow); padding:0 16px 12px; border-bottom:1px solid var(--line); }
+.mobile-sheet-body { padding:12px; }
+
+/* ═══════════════════════════════════════════
+   Z-INDEX SYSTEM
+   ═══════════════════════════════════════════ */
+/* input-zone: 300 (set above) */
+/* mobile-bottom-nav: 200 (set above) */
+/* history-overlay: 350 (set above) */
+/* history-drawer: 400 (set above) */
+/* mobile-sheet-overlay: 300, sheet: 301 */
+
+/* Rename modal */
+#renameModal { z-index:500; }
+
+/* ═══════════════════════════════════════════
+   DESKTOP ONLY / MOBILE ONLY
+   ═══════════════════════════════════════════ */
+.desktop-only { display:flex !important; }
+
+/* ═══════════════════════════════════════════
+   TABLET
+   ═══════════════════════════════════════════ */
+@media (min-width:769px) and (max-width:1024px) {
+  .quick-panel { width:140px; }
+  .products-grid { grid-template-columns:1fr; }
+}
+@media (min-width:1025px) {
+  .products-grid {
+    grid-template-columns: 1fr 1fr; /* 🔥 DESKTOP FIX */
+  }
+}
+
+/* ═══════════════════════════════════════════
+   MOBILE — everything works same, just smaller
+   ═══════════════════════════════════════════ */
+@media (max-width:768px) {
+  /* Show bottom nav */
+  .mobile-bottom-nav { display:block; }
+
+  /* Hide desktop-only items */
+  .desktop-only { display:none !important; }
+  .header-brand .btn { display:none !important; }
+  .quick-panel { display:none !important; }
+  .input-hint { display:none; }
+
+  /* Compact header */
+  .app-header { padding:10px 14px; }
+  .header-name { font-size:15px; }
+
+  /* IMPORTANT: app-body needs to account for fixed bottom nav */
+  .app { height: 100dvh; }
+  .app-body { padding-bottom: 65px; }
+
+  .messages { padding:10px 12px 140px; gap:8px; min-height:0; }
+
+  /* Input compact */
+  .input-zone { padding:8px 12px 10px; }
+  .input-bar { padding:10px 12px; border-radius:14px; }
+  #searchInput { font-size:16px; } /* prevents iOS zoom */
+
+  /* Products single column */
+  .products-grid { grid-template-columns:1fr; gap:10px; }
+  .product-card { padding:14px; }
+  .price-main { font-size:22px; }
+  .results-header { flex-direction:column; gap:8px; }
+  .results-title { font-size:16px; }
+  .score-label { width:60px; font-size:10px; }
+  .links-row { flex-direction:column; gap:6px; }
+  .link-buy { width:100%; justify-content:center; padding:11px; }
+  .history-drawer { width:100% !important; }
+  .welcome-title { font-size:22px; }
+  .welcome-icon { font-size:48px; }
+  .chip { font-size:11px; padding:6px 12px; }
+  .top-pick-banner { padding:12px 14px; }
+  .tags-row { gap:4px; }
+  .modal { padding:18px 14px; margin:10px; border-radius:16px; }
+  .search-block-header { padding:11px 13px; }
+  .search-block-body { padding:0 10px 14px; }
+  .search-block-query { font-size:12.5px; }
+}
+
+/* Small phone */
+@media (max-width:380px) {
+  .product-card { padding:12px; }
+  .price-main { font-size:20px; }
+  .welcome-title { font-size:18px; }
+  .welcome-icon { font-size:36px; }
+}
+</style>
+</head>
+<body>
+<div class="page-bg"></div>
+
+<!-- History Overlay -->
+<div class="history-overlay" id="histOverlay" onclick="closeHistory()"></div>
+
+<!-- History Drawer -->
+<div class="history-drawer" id="histDrawer">
+  <div class="history-drawer-header">
+    <span class="history-drawer-title">📋 History</span>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button class="btn btn-ghost btn-sm btn-icon" onclick="closeHistory()">✕</button>
+    </div>
+  </div>
+  <div style="padding:8px 12px;border-bottom:1px solid var(--line)">
+    <div style="display:flex;align-items:center;gap:8px;background:var(--ink-3);border:1px solid var(--line);border-radius:var(--radius-sm);padding:6px 10px">
+      <span style="color:var(--fog);font-size:12px">🔍</span>
+      <input id="histSearchInput" type="text" placeholder="Search history..." style="background:transparent;border:none;color:var(--snow);font-size:12px;width:100%;font-family:var(--font-body)" oninput="filterHistList(this.value)"/>
+    </div>
+  </div>
+  <div class="history-drawer-body" id="histList">
+    <div class="empty-state"><div class="icon">📭</div><div class="title">No history yet</div></div>
+  </div>
+  <div style="padding:10px 12px;border-top:1px solid var(--line)">
+    <button class="btn btn-ghost btn-sm" style="width:100%;color:var(--ruby);font-size:12px" onclick="clearHistory()">🗑️ Clear All History</button>
+  </div>
+</div>
+
+<!-- Rename Modal -->
+<div class="modal-overlay" id="renameModal" style="display:none" onclick="if(event.target===this)closeRename()">
+  <div class="modal" style="max-width:400px">
+    <div style="font-size:16px;font-weight:600;color:var(--snow);margin-bottom:16px">✏️ Rename Search</div>
+    <input id="renameInput" class="input" type="text" placeholder="Enter new name..." style="margin-bottom:16px"/>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-ghost btn-sm" onclick="closeRename()">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="confirmRename()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app">
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="header-icon">🛍️</div>
+      <span class="header-name">ShopMind AI</span>
+      <button class="btn btn-primary btn-sm desktop-only" onclick="newSearch()">✦ New Search</button>
+    </div>
+    <div class="header-controls">
+      <div id="searchCounter" class="desktop-only" style="display:flex;align-items:center;gap:6px;padding:5px 11px;background:var(--ink-3);border:1px solid var(--line);border-radius:16px;font-size:11px;font-family:var(--font-mono);">
+        <span id="counterIcon">🔍</span>
+        <span id="counterText" style="color:var(--mist)">Loading...</span>
+      </div>
+      <a id="upgradeBtn" href="/pricing" style="display:none" class="btn btn-primary btn-sm desktop-only">⭐ Upgrade ₹99</a>
+      <div class="lang-toggle desktop-only">
+        <button class="lang-btn active" id="btnEN" onclick="setLang('en')">EN</button>
+        <button class="lang-btn" id="btnHI" onclick="setLang('hi')">हिं</button>
+      </div>
+      <div class="status-dot-wrap desktop-only">
+        <div class="status-dot"></div>
+        <span>Live</span>
+      </div>
+      <div class="user-menu-wrap desktop-only">
+        <button class="user-btn" onclick="toggleDropdown()">
+          <div class="user-initial" id="userInitial">?</div>
+          <span class="user-display-name" id="userDisplayName">...</span>
+          <span style="font-size:9px;color:var(--fog)">▾</span>
+        </button>
+        <div class="dropdown" id="userDropdown">
+          <div class="dropdown-item" onclick="window.location.href='/history'">📋 History</div>
+          <div class="dropdown-item" onclick="window.location.href='/pricing'">⭐ Upgrade to Pro</div>
+          <div class="dropdown-divider"></div>
+          <div class="dropdown-item danger" onclick="logout()">🚪 Sign Out</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Body -->
+  <div class="app-body">
+    <!-- Main Chat -->
+    <main class="main-chat">
+      <!-- Messages (SCROLL AREA) -->
+      <div class="messages" id="messages">
+        <div class="welcome-screen" id="welcomeScreen">
+          <div class="welcome-icon">🛍️</div>
+          <div class="welcome-title">Welcome, <em id="welcomeName">friend</em>!</div>
+          <p class="welcome-desc">Search any product — I'll scan the entire internet, filter fake results, and give you the best ranked recommendations with direct buy links.</p>
+          <div class="suggestion-chips">
+            <div class="chip" onclick="qs('Best phone under ₹15,000 with good camera 2025')">📱 Phone under ₹15k</div>
+            <div class="chip" onclick="qs('Best gaming laptop under ₹80,000 India')">💻 Gaming laptop</div>
+            <div class="chip" onclick="qs('Best wireless earbuds under ₹3,000 India')">🎧 Earbuds ₹3k</div>
+            <div class="chip" onclick="qs('Best smartwatch under ₹5,000 India 2025')">⌚ Smartwatch ₹5k</div>
+            <div class="chip" onclick="qs('Best air purifier under ₹10,000 India')">💨 Air purifier</div>
+            <div class="chip" onclick="qs('Best mixer grinder under ₹3,000 India')">🥄 Mixer grinder</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input (sticky bottom) -->
+      <div class="input-zone">
+        <div class="input-bar">
+          <textarea id="searchInput" rows="1" placeholder="Search any product..." onkeydown="onKey(event)" oninput="autoResize(this)"></textarea>
+          <button class="send-btn" id="sendBtn" onclick="handleSearch()">➤</button>
+        </div>
+        <div class="input-hint">Enter to search · Shift+Enter for new line</div>
+      </div>
+    </main>
+
+    <!-- Desktop Sidebar -->
+    <aside class="quick-panel">
+      <div>
+        <div class="label" style="margin-bottom:8px">Categories</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div class="cat-group">
+            <div class="cat-header" onclick="toggleCatGroup('elec',this)"><span>⚡ Electronics</span><span class="cat-arrow">▾</span></div>
+            <div class="cat-sub" id="grp-elec">
+              <button class="sub-btn" onclick="setCategory('Phones','Best smartphones India 2025',this)">📱 Phones</button>
+              <button class="sub-btn" onclick="setCategory('Laptops','Best laptops India 2025',this)">💻 Laptops</button>
+              <button class="sub-btn" onclick="setCategory('Smart TVs','Best smart TV India 2025',this)">📺 Smart TVs</button>
+              <button class="sub-btn" onclick="setCategory('Earbuds','Best earbuds India 2025',this)">🎧 Earbuds</button>
+              <button class="sub-btn" onclick="setCategory('Watches','Best smartwatch India 2025',this)">⌚ Watches</button>
+              <button class="sub-btn" onclick="setCategory('Cameras','Best cameras India 2025',this)">📷 Cameras</button>
+              <button class="sub-btn" onclick="setCategory('Tablets','Best tablets India 2025',this)">📟 Tablets</button>
+              <button class="sub-btn" onclick="setCategory('Speakers','Best speakers India 2025',this)">🔊 Speakers</button>
+            </div>
+          </div>
+          <div class="cat-group">
+            <div class="cat-header" onclick="toggleCatGroup('home',this)"><span>🏠 Appliances</span><span class="cat-arrow">▾</span></div>
+            <div class="cat-sub" id="grp-home">
+              <button class="sub-btn" onclick="setCategory('AC','Best AC India 2025',this)">❄️ AC</button>
+              <button class="sub-btn" onclick="setCategory('Fridge','Best refrigerator India 2025',this)">🧊 Fridge</button>
+              <button class="sub-btn" onclick="setCategory('Washing Machine','Best washing machine India 2025',this)">🫧 Washing Machine</button>
+              <button class="sub-btn" onclick="setCategory('Mixer Grinder','Best mixer grinder India 2025',this)">🥄 Mixer Grinder</button>
+              <button class="sub-btn" onclick="setCategory('Microwave','Best microwave India 2025',this)">🍳 Microwave</button>
+              <button class="sub-btn" onclick="setCategory('Water Purifier','Best water purifier India 2025',this)">💧 Water Purifier</button>
+            </div>
+          </div>
+          <div class="cat-group">
+            <div class="cat-header" onclick="toggleCatGroup('fashion',this)"><span>👗 Fashion</span><span class="cat-arrow">▾</span></div>
+            <div class="cat-sub" id="grp-fashion">
+              <button class="sub-btn" onclick="setCategory('Shoes','Best shoes India 2025',this)">👟 Shoes</button>
+              <button class="sub-btn" onclick="setCategory('T-Shirts','Best t-shirts India 2025',this)">👕 T-Shirts</button>
+              <button class="sub-btn" onclick="setCategory('Jeans','Best jeans India 2025',this)">👖 Jeans</button>
+              <button class="sub-btn" onclick="setCategory('Kurta','Best kurta India 2025',this)">👘 Kurta</button>
+              <button class="sub-btn" onclick="setCategory('Saree','Best saree India 2025',this)">🥻 Saree</button>
+              <button class="sub-btn" onclick="setCategory('Bags','Best bags India 2025',this)">👜 Bags</button>
+            </div>
+          </div>
+          <div class="cat-group">
+            <div class="cat-header" onclick="toggleCatGroup('beauty',this)"><span>✨ Beauty</span><span class="cat-arrow">▾</span></div>
+            <div class="cat-sub" id="grp-beauty">
+              <button class="sub-btn" onclick="setCategory('Skincare','Best skincare India 2025',this)">🧴 Skincare</button>
+              <button class="sub-btn" onclick="setCategory('Face Wash','Best face wash India 2025',this)">🫧 Face Wash</button>
+              <button class="sub-btn" onclick="setCategory('Perfume','Best perfume India 2025',this)">🌸 Perfume</button>
+              <button class="sub-btn" onclick="setCategory('Hair Care','Best hair care India 2025',this)">💆 Hair Care</button>
+              <button class="sub-btn" onclick="setCategory('Makeup','Best makeup India 2025',this)">💄 Makeup</button>
+              <button class="sub-btn" onclick="setCategory('Sunscreen','Best sunscreen India 2025',this)">☀️ Sunscreen</button>
+            </div>
+          </div>
+          <div class="cat-group">
+            <div class="cat-header" onclick="toggleCatGroup('grocery',this)"><span>🛒 Grocery</span><span class="cat-arrow">▾</span></div>
+            <div class="cat-sub" id="grp-grocery">
+              <button class="sub-btn" onclick="setCategory('Atta & Rice','Best atta and rice India 2025',this)">🌾 Atta & Rice</button>
+              <button class="sub-btn" onclick="setCategory('Dal & Pulses','Best dal pulses India 2025',this)">🫘 Dal & Pulses</button>
+              <button class="sub-btn" onclick="setCategory('Cooking Oil','Best cooking oil India 2025',this)">🫙 Cooking Oil</button>
+              <button class="sub-btn" onclick="setCategory('Dry Fruits','Best dry fruits India 2025',this)">🥜 Dry Fruits</button>
+              <button class="sub-btn" onclick="setCategory('Tea & Coffee','Best tea coffee India 2025',this)">☕ Tea & Coffee</button>
+              <button class="sub-btn" onclick="setCategory('Snacks','Best snacks India 2025',this)">🍿 Snacks</button>
+            </div>
+          </div>
+          <div class="cat-group">
+            <div class="cat-header" onclick="toggleCatGroup('health',this)"><span>💊 Health & Fitness</span><span class="cat-arrow">▾</span></div>
+            <div class="cat-sub" id="grp-health">
+              <button class="sub-btn" onclick="setCategory('Protein Powder','Best protein powder India 2025',this)">💪 Protein</button>
+              <button class="sub-btn" onclick="setCategory('Vitamins','Best vitamins India 2025',this)">💊 Vitamins</button>
+              <button class="sub-btn" onclick="setCategory('Fitness Equipment','Best fitness equipment India 2025',this)">🏋️ Equipment</button>
+              <button class="sub-btn" onclick="setCategory('Yoga Mat','Best yoga mat India 2025',this)">🧘 Yoga</button>
+              <button class="sub-btn" onclick="setCategory('Medicine','Best medicine India 2025',this)">🏥 Medicine</button>
+              <button class="sub-btn" onclick="setCategory('Gaming','Best gaming India 2025',this)">🎮 Gaming</button>
+            </div>
+          </div>
+          <div class="cat-group">
+            <div class="cat-header" onclick="toggleCatGroup('furniture',this)"><span>🪑 Furniture</span><span class="cat-arrow">▾</span></div>
+            <div class="cat-sub" id="grp-furniture">
+              <button class="sub-btn" onclick="setCategory('Sofa','Best sofa India 2025',this)">🛋️ Sofa</button>
+              <button class="sub-btn" onclick="setCategory('Bed','Best bed mattress India 2025',this)">🛏️ Bed</button>
+              <button class="sub-btn" onclick="setCategory('Study Table','Best study table India 2025',this)">📚 Study Table</button>
+              <button class="sub-btn" onclick="setCategory('Office Chair','Best office chair India 2025',this)">🪑 Office Chair</button>
+              <button class="sub-btn" onclick="setCategory('Wardrobe','Best wardrobe India 2025',this)">🚪 Wardrobe</button>
+            </div>
+          </div>
+          <div class="cat-group">
+            <div class="cat-header" onclick="toggleCatGroup('baby',this)"><span>👶 Baby & Kids</span><span class="cat-arrow">▾</span></div>
+            <div class="cat-sub" id="grp-baby">
+              <button class="sub-btn" onclick="setCategory('Diapers','Best diapers India 2025',this)">🍼 Diapers</button>
+              <button class="sub-btn" onclick="setCategory('Baby Food','Best baby food India 2025',this)">🥣 Baby Food</button>
+              <button class="sub-btn" onclick="setCategory('Toys','Best toys India 2025',this)">🧸 Toys</button>
+              <button class="sub-btn" onclick="setCategory('Kids Clothes','Best kids clothes India 2025',this)">👕 Kids Clothes</button>
+            </div>
+          </div>
+          <div class="cat-group">
+            <div class="cat-header" onclick="toggleCatGroup('vehicle',this)"><span>🚗 Vehicles</span><span class="cat-arrow">▾</span></div>
+            <div class="cat-sub" id="grp-vehicle">
+              <button class="sub-btn" onclick="setCategory('Electric Scooter','Best electric scooter India 2025',this)">🛵 E-Scooter</button>
+              <button class="sub-btn" onclick="setCategory('Bicycle','Best bicycle India 2025',this)">🚲 Bicycle</button>
+              <button class="sub-btn" onclick="setCategory('Car Accessories','Best car accessories India 2025',this)">🚗 Car Accessories</button>
+              <button class="sub-btn" onclick="setCategory('Helmet','Best helmet India 2025',this)">⛑️ Helmet</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:8px">
+        <div class="label" style="margin-bottom:8px">Platforms</div>
+        <div class="platform-grid">
+          <div class="platform-tag" onclick="searchPlatform('Amazon India','Best deals on Amazon India today')">Amazon</div>
+          <div class="platform-tag" onclick="searchPlatform('Flipkart','Best deals on Flipkart today')">Flipkart</div>
+          <div class="platform-tag" onclick="searchPlatform('Meesho','Best products on Meesho today')">Meesho</div>
+          <div class="platform-tag" onclick="searchPlatform('JioMart','Best grocery on JioMart today')">JioMart</div>
+          <div class="platform-tag" onclick="searchPlatform('Myntra','Best fashion on Myntra today')">Myntra</div>
+          <div class="platform-tag" onclick="searchPlatform('Nykaa','Best beauty on Nykaa today')">Nykaa</div>
+          <div class="platform-tag" onclick="searchPlatform('Croma','Best electronics on Croma today')">Croma</div>
+          <div class="platform-tag" onclick="searchPlatform('Tata Cliq','Best deals on Tata Cliq today')">TataCliq</div>
+          <div class="platform-tag" onclick="searchPlatform('Reliance Digital','Best electronics on Reliance today')">Reliance</div>
+          <div class="platform-tag" onclick="searchPlatform('BigBasket','Best grocery on BigBasket today')">BigBasket</div>
+          <div class="platform-tag" onclick="searchPlatform('Ajio','Best fashion on Ajio today')">Ajio</div>
+          <div class="platform-tag" onclick="searchPlatform('Purplle','Best beauty on Purplle today')">Purplle</div>
+          <div class="platform-tag" onclick="searchPlatform('PharmEasy','Best medicine on PharmEasy today')">PharmEasy</div>
+          <div class="platform-tag" onclick="searchPlatform('1mg','Best health on 1mg today')">1mg</div>
+          <div class="platform-tag" onclick="searchPlatform('Pepperfry','Best furniture on Pepperfry today')">Pepperfry</div>
+          <div class="platform-tag" onclick="searchPlatform('FirstCry','Best baby on FirstCry today')">FirstCry</div>
+          <div class="platform-tag" onclick="searchPlatform('Blinkit','Best quick delivery on Blinkit today')">Blinkit</div>
+          <div class="platform-tag" onclick="searchPlatform('Snapdeal','Best deals on Snapdeal today')">Snapdeal</div>
+          <div class="platform-tag" onclick="searchPlatform('Vijay Sales','Best electronics on Vijay Sales today')">Vijay Sales</div>
+          <div class="platform-tag" onclick="searchPlatform('Zepto','Best quick delivery on Zepto today')">Zepto</div>
+        </div>
+      </div>
+
+    </aside>
+  </div>
+</div>
+
+<!-- Mobile Bottom Navigation -->
+<nav class="mobile-bottom-nav">
+  <div class="mobile-nav-items">
+    <button class="mobile-nav-btn active" id="mNavSearch" onclick="mobileNavSearch()">
+      <span>🔍</span><span>Search</span>
+    </button>
+    <button class="mobile-nav-btn" id="mNavNew" onclick="newSearch();mobileNav('search')">
+      <span>✦</span><span>New</span>
+    </button>
+    <button class="mobile-nav-btn" id="mNavCats" onclick="openMobileSheet()">
+      <span>📂</span><span>Categories</span>
+    </button>
+    <button class="mobile-nav-btn" id="mNavProfile" onclick="openMobileProfile()">
+      <span id="mUserInitial" style="width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,var(--saffron),var(--saffron-2));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--ink)">A</span>
+      <span>Me</span>
+    </button>
+  </div>
+</nav>
+
+<!-- Mobile Category Sheet -->
+<div class="mobile-sheet-overlay" id="mobileSheetOverlay" onclick="closeMobileSheet()"></div>
+<div class="mobile-sheet" id="mobileSheet">
+  <div class="mobile-sheet-handle" onclick="closeMobileSheet()" title="Close"></div>
+  <div class="mobile-sheet-title">📂 Categories & Platforms</div>
+  <div class="mobile-sheet-body" id="mobileSheetBody"></div>
+</div>
+
+<!-- Mobile Profile Sheet -->
+<div class="mobile-sheet-overlay" id="mobileProfileOverlay" onclick="closeMobileProfile()" style="display:none"></div>
+<div class="mobile-sheet" id="mobileProfileSheet" style="max-height:50vh">
+  <div class="mobile-sheet-handle" onclick="closeMobileProfile()" title="Close"></div>
+  <div class="mobile-sheet-body" style="padding:0 16px 24px">
+    <div style="display:flex;align-items:center;gap:14px;padding:8px 0 20px;border-bottom:1px solid var(--line);margin-bottom:16px">
+      <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--saffron),var(--saffron-2));display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:var(--ink)" id="mProfileInitial">A</div>
+      <div>
+        <div style="font-size:15px;font-weight:600;color:var(--snow)" id="mProfileName">User</div>
+        <div style="font-size:12px;color:var(--fog)" id="mProfileEmail"></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button onclick="window.location.href='/pricing';closeMobileProfile()" style="width:100%;padding:13px 16px;background:var(--saffron-d);border:1px solid rgba(255,153,51,0.25);border-radius:var(--radius);color:var(--saffron);font-size:14px;font-weight:600;font-family:var(--font-body);cursor:pointer;text-align:left">⭐ Upgrade to Pro — ₹99/month</button>
+      <button onclick="window.location.href='/history';closeMobileProfile()" style="width:100%;padding:13px 16px;background:var(--ink-3);border:1px solid var(--line);border-radius:var(--radius);color:var(--mist);font-size:14px;font-family:var(--font-body);cursor:pointer;text-align:left">📋 History</button>
+      <button onclick="logout()" style="width:100%;padding:13px 16px;background:var(--ruby-d);border:1px solid rgba(244,63,94,0.2);border-radius:var(--radius);color:var(--ruby);font-size:14px;font-family:var(--font-body);cursor:pointer;text-align:left">🚪 Sign Out</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/search.js"></script>
+<script src="js/history.js"></script>
+<script>
+let lang = 'en';
+let busy = false;
+let currentUser = null;
+let activeCategory = null;
+let activeCategoryQuery = null;
+let searchCount = 0;
+let allHistChats = [];
+let renameTargetId = null;
+
+(async () => {
+  const session = await requireAuth();
+  if (!session) return;
+  currentUser = session.user;
+  const name = getDisplayName(currentUser);
+  document.getElementById('userInitial').textContent     = getUserInitial(currentUser);
+  document.getElementById('userDisplayName').textContent = name.split(' ')[0];
+  document.getElementById('welcomeName').textContent     = name.split(' ')[0];
+  loadHistoryList();
+  loadPlanInfo();
+  syncMobileUserInitial();
+})();
+
+function setLang(l) {
+  lang = l;
+  document.getElementById('btnEN').classList.toggle('active', l==='en');
+  document.getElementById('btnHI').classList.toggle('active', l==='hi');
+  document.getElementById('searchInput').placeholder = l==='hi' ? 'कोई भी product खोजें...' : 'Search any product...';
+}
+
+function setCategory(name, defaultQuery, btn) {
+  if (activeCategory === name) {
+    activeCategory = null; activeCategoryQuery = null;
+    document.querySelectorAll('.sub-btn,.quick-btn').forEach(b => b.classList.remove('active-cat'));
+    document.getElementById('searchInput').placeholder = 'Search any product...';
+    document.getElementById('cat-badge')?.remove();
+    return;
+  }
+  activeCategory = name; activeCategoryQuery = defaultQuery;
+  document.querySelectorAll('.sub-btn,.quick-btn').forEach(b => b.classList.remove('active-cat'));
+  btn.classList.add('active-cat');
+  document.getElementById('searchInput').placeholder = `Search in ${name}...`;
+  document.getElementById('cat-badge')?.remove();
+  const badge = document.createElement('span');
+  badge.id = 'cat-badge'; badge.className = 'badge badge-saffron';
+  badge.style.cssText = 'cursor:pointer;margin-left:6px';
+  badge.innerHTML = `${name} ✕`;
+  badge.onclick = () => setCategory(name, defaultQuery, btn);
+  document.querySelector('.header-brand').appendChild(badge);
+  showCategoryMessage(name);
+}
+
+function getCategoryBudgets(category) {
+  const b = {'Phones':['₹5,000','₹10,000','₹15,000','₹20,000'],'Laptops':['₹30,000','₹50,000','₹70,000','₹1,00,000'],'Smart TVs':['₹10,000','₹20,000','₹30,000','₹50,000'],'Earbuds':['₹500','₹1,000','₹2,000','₹5,000'],'Watches':['₹1,000','₹3,000','₹5,000','₹10,000'],'AC':['₹20,000','₹30,000','₹40,000','₹60,000'],'Fridge':['₹10,000','₹20,000','₹30,000','₹50,000'],'Washing Machine':['₹10,000','₹15,000','₹25,000','₹40,000'],'Shoes':['₹500','₹1,000','₹2,000','₹5,000'],'Skincare':['₹100','₹300','₹500','₹1,000'],'Face Wash':['₹50','₹100','₹200','₹500'],'Gaming':['₹5,000','₹10,000','₹20,000','₹50,000'],'Cameras':['₹10,000','₹25,000','₹50,000','₹1,00,000'],'Electric Scooter':['₹50,000','₹80,000','₹1,00,000','₹1,50,000']};
+  return b[category] || ['₹500','₹1,000','₹5,000','₹10,000'];
+}
+
+function showCategoryMessage(categoryName) {
+  document.getElementById('welcomeScreen')?.remove();
+  document.getElementById('cat-msg')?.remove();
+  if (!categoryName) return;
+  const msgs = document.getElementById('messages');
+  const d = document.createElement('div');
+  d.id = 'cat-msg'; d.className = 'msg ai anim-fade-up';
+  d.innerHTML = `<div class="msg-avatar ai-avatar">🛍️</div><div class="msg-bubble ai-bubble" style="max-width:100%;width:100%"><div style="display:flex;flex-direction:column;gap:10px"><div class="badge badge-saffron" style="font-size:13px;padding:6px 14px;width:fit-content">✅ ${esc(categoryName)} mode activated</div><p style="font-size:14px;color:var(--snow);line-height:1.75">Selected <strong style="color:var(--saffron)">${esc(categoryName)}</strong>. Tell me your budget for best results.</p><div style="display:flex;gap:8px;flex-wrap:wrap">${getCategoryBudgets(categoryName).map(b=>`<div class="chip" style="cursor:pointer" onclick="qs('best ${categoryName.toLowerCase()} under ${b} India')">${b}</div>`).join('')}</div></div></div>`;
+  msgs.appendChild(d);
+  scrollDown();
+}
+
+function toggleCatGroup(id, headerEl) {
+  const sub = document.getElementById('grp-' + id);
+  const isOpen = sub.classList.contains('open');
+  document.querySelectorAll('.cat-sub').forEach(s => s.classList.remove('open'));
+  document.querySelectorAll('.cat-header').forEach(h => h.classList.remove('open'));
+  if (!isOpen) { sub.classList.add('open'); headerEl.classList.add('open'); }
+}
+
+function searchPlatform(platformName, query) {
+  document.querySelectorAll('.platform-tag').forEach(t => t.classList.remove('active-plat'));
+  event.currentTarget.classList.add('active-plat');
+  qs(query);
+}
+
+function toggleDropdown() { document.getElementById('userDropdown').classList.toggle('open'); }
+document.addEventListener('click', e => { if (!e.target.closest('.user-menu-wrap')) document.getElementById('userDropdown').classList.remove('open'); });
+
+function openHistory() { document.getElementById('histDrawer').classList.add('open'); document.getElementById('histOverlay').classList.add('show'); }
+function closeHistory() { document.getElementById('histDrawer').classList.remove('open'); document.getElementById('histOverlay').classList.remove('show'); }
+
+async function loadHistoryList() {
+  try {
+    allHistChats = await fetchHistory();
+    renderHistList(allHistChats);
+  } catch {}
+}
+
+function renderHistList(chats) {
+  const list = document.getElementById('histList');
+  if (!chats.length) { list.innerHTML = `<div class="empty-state"><div class="icon">📭</div><div class="title">No history yet</div></div>`; return; }
+  const now = Date.now();
+  const groups = {};
+  for (const c of chats) {
+    const diff = now - new Date(c.created_at);
+    const label = diff < 86400000 ? 'Today' : diff < 172800000 ? 'Yesterday' : diff < 604800000 ? 'This Week' : 'Older';
+    if (!groups[label]) groups[label] = [];
+    groups[label].push(c);
+  }
+  let html = '';
+  for (const label of ['Today','Yesterday','This Week','Older']) {
+    if (!groups[label]?.length) continue;
+    html += `<div class="hist-section-label">${label}</div>`;
+    html += groups[label].map(c => `<div class="hist-entry" onclick="loadOldChat('${esc(c.id)}','${esc(c.query).replace(/'/g,"\\'")}')"><span class="hist-entry-icon">💬</span><div class="hist-entry-info"><div class="hist-entry-q" id="hist-q-${esc(c.id)}">${esc(c.query)}</div><div class="hist-entry-t">${timeAgo(c.created_at)}</div></div><div class="hist-entry-actions" onclick="event.stopPropagation()"><button class="hist-action-btn" onclick="openRename('${esc(c.id)}','${esc(c.query).replace(/'/g,"\\'")}')" title="Rename">✏️</button><button class="hist-action-btn del" onclick="deleteSingleChat('${esc(c.id)}')" title="Delete">🗑️</button></div></div>`).join('');
+  }
+  list.innerHTML = html;
+}
+
+function filterHistList(q) { if (!q.trim()) { renderHistList(allHistChats); return; } renderHistList(allHistChats.filter(c => c.query.toLowerCase().includes(q.toLowerCase()))); }
+
+async function deleteSingleChat(id) { try { await deleteChat(id); allHistChats = allHistChats.filter(c => c.id !== id); renderHistList(allHistChats); showToast('Deleted','success'); } catch(e) { showToast(e.message,'error'); } }
+
+function openRename(id, q) { renameTargetId = id; document.getElementById('renameInput').value = q; document.getElementById('renameModal').style.display = 'flex'; setTimeout(()=>document.getElementById('renameInput').select(),100); }
+function closeRename() { renameTargetId = null; document.getElementById('renameModal').style.display = 'none'; }
+function confirmRename() { const n = document.getElementById('renameInput').value.trim(); if (!n || !renameTargetId) return; const el = document.getElementById('hist-q-'+renameTargetId); if (el) el.textContent = n; const c = allHistChats.find(c=>c.id===renameTargetId); if (c) c.query = n; closeRename(); showToast('Renamed!','success'); }
+
+async function clearHistory() { if (!confirm('Clear all history?')) return; try { await clearAllHistory(); allHistChats = []; renderHistList([]); showToast('Cleared','success'); } catch(e) { showToast(e.message,'error'); } }
+
+async function loadOldChat(id, query) {
+  closeHistory();
+  document.getElementById('welcomeScreen')?.remove();
+  const msgs = document.getElementById('messages');
+  msgs.innerHTML = '';
+  const loadDiv = document.createElement('div'); loadDiv.className='msg ai anim-fade-up'; loadDiv.id='hist-loading';
+  loadDiv.innerHTML = `<div class="msg-avatar ai-avatar">🛍️</div><div class="msg-bubble ai-bubble"><div class="typing"><span></span><span></span><span></span></div><div class="typing-text mono" style="margin-top:7px">Loading...</div></div>`;
+  msgs.appendChild(loadDiv); scrollDown();
+  try {
+    const chat = await fetchChat(id);
+    document.getElementById('hist-loading')?.remove();
+    if (chat?.response?.products?.length) addSearchBlock(query, renderResults(chat.response));
+    else addMsg('ai','<p style="font-size:14px;color:var(--mist)">Could not load. Try searching again.</p>',true);
+  } catch(e) { document.getElementById('hist-loading')?.remove(); addMsg('ai',`<div class="error-banner"><span>⚠️</span><span>${esc(e.message)}</span></div>`,true); }
+}
+
+function newSearch() {
+  startNewSession();
+  activeCategory = null; activeCategoryQuery = null; searchCount = 0;
+  document.querySelectorAll('.sub-btn,.quick-btn').forEach(b=>b.classList.remove('active-cat'));
+  document.querySelectorAll('.platform-tag').forEach(t=>t.classList.remove('active-plat'));
+  document.getElementById('cat-badge')?.remove();
+  document.getElementById('searchInput').placeholder = 'Search any product...';
+  const name = document.getElementById('welcomeName')?.textContent || 'friend';
+  document.getElementById('messages').innerHTML = `<div class="welcome-screen anim-fade-up" id="welcomeScreen"><div class="welcome-icon">🛍️</div><div class="welcome-title">Welcome, <em>${esc(name)}</em>!</div><p class="welcome-desc">Search any product or pick a category.</p><div class="suggestion-chips"><div class="chip" onclick="qs('Best phone under ₹15,000 India')">📱 Phone ₹15k</div><div class="chip" onclick="qs('Best earbuds under ₹3,000 India')">🎧 Earbuds ₹3k</div><div class="chip" onclick="qs('Best smartwatch under ₹5,000 India')">⌚ Smartwatch</div></div></div>`;
+}
+
+function qs(q) { document.getElementById('searchInput').value = q; handleSearch(); }
+function onKey(e) { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); const inp = document.getElementById('searchInput'); if (activeCategory && inp.value.trim() && !inp.value.toLowerCase().includes(activeCategory.toLowerCase())) inp.value = inp.value.trim() + ` in ${activeCategory} India`; handleSearch(); } }
+function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,90)+'px'; }
+function scrollDown() { const m=document.getElementById('messages'); m.scrollTop=m.scrollHeight; }
+
+function addSearchBlock(query, resultsHTML) {
+  document.getElementById('welcomeScreen')?.remove();
+  const msgs = document.getElementById('messages');
+  searchCount++;
+  const id = 'block-' + searchCount;
+  const time = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  const d = document.createElement('div');
+  d.className = 'search-block open anim-fade-up'; d.id = id;
+  d.innerHTML = `<div class="search-block-header" onclick="toggleBlock('${id}')"><div class="search-block-icon">🔍</div><div class="search-block-info"><div class="search-block-query">${esc(query)}</div><div class="search-block-meta"><span>${time}</span><span class="badge badge-saffron" style="font-size:9px;padding:2px 7px">Search #${searchCount}</span></div></div><span class="search-block-arrow">▾</span></div><div class="search-block-body">${resultsHTML}</div>`;
+  msgs.appendChild(d);
+  msgs.querySelectorAll('.search-block').forEach(b => { if (b.id !== id) b.classList.remove('open'); });
+  scrollDown();
+}
+
+function toggleBlock(id) {
+  const block = document.getElementById(id); if (!block) return;
+  const isOpen = block.classList.contains('open');
+  document.querySelectorAll('.search-block').forEach(b=>b.classList.remove('open'));
+  if (!isOpen) block.classList.add('open');
+  scrollDown();
+}
+
+function addMsg(role, html, isHtml=false) {
+  document.getElementById('welcomeScreen')?.remove();
+  const msgs = document.getElementById('messages');
+  const d = document.createElement('div'); d.className=`msg ${role} anim-fade-up`;
+  const av = role==='user'?(document.getElementById('userInitial')?.textContent||'U'):'🛍️';
+  d.innerHTML=`<div class="msg-avatar ${role==='ai'?'ai-avatar':'user-avatar'}">${av}</div><div class="msg-bubble ${role==='ai'?'ai-bubble':'user-bubble'}" ${role==='ai'?'style="max-width:100%;width:100%"':''}>${isHtml?html:esc(html)}</div>`;
+  msgs.appendChild(d); scrollDown();
+}
+
+async function loadPlanInfo() {
+  try {
+    const token = await getToken();
+    const res = await fetch('/api/payments/plan', { headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await res.json();
+    if (data.success) updateCounter(data);
+  } catch {}
+}
+
+function updateCounter(data) {
+  const counter = document.getElementById('counterText');
+  const icon = document.getElementById('counterIcon');
+  const upgBtn = document.getElementById('upgradeBtn');
+  if (data.plan === 'pro') { icon.textContent='⭐'; counter.textContent='Pro — Unlimited'; counter.style.color='var(--saffron)'; if (upgBtn) upgBtn.style.display='none'; }
+  else { const left = data.searches_left; icon.textContent=left<=3?'⚠️':'🔍'; counter.textContent=`${left} left today`; counter.style.color=left<=3?'var(--ruby)':'var(--mist)'; if (upgBtn) upgBtn.style.display=left<=5?'flex':'none'; }
+}
+
+function showUpgradeModal() {
+  document.getElementById('upgradeModal')?.remove();
+  const modal = document.createElement('div'); modal.id='upgradeModal'; modal.className='modal-overlay';
+  modal.innerHTML=`<div class="modal" style="text-align:center;gap:20px"><div style="font-size:48px">🚀</div><div style="font-family:var(--font-display);font-size:24px;color:var(--saffron-2)">Daily limit reached!</div><p style="font-size:14px;color:var(--mist);line-height:1.75">You get <strong>10 free searches/day</strong>. Upgrade to <strong style="color:var(--saffron)">Pro ₹99/month</strong> for unlimited!</p><div style="display:flex;flex-direction:column;gap:10px"><a class="btn btn-primary btn-lg" href="/pricing">⭐ Upgrade to Pro</a><button class="btn btn-ghost" onclick="document.getElementById('upgradeModal').remove()">Wait until tomorrow</button></div></div>`;
+  document.body.appendChild(modal);
+}
+
+async function handleSearch() {
+  const input = document.getElementById('searchInput');
+  const q = input.value.trim();
+  if (!q || busy) return;
+  input.value = ''; input.style.height = 'auto';
+  const msgs = document.getElementById('messages');
+  const typingEl = showTyping(msgs);
+  busy = true; document.getElementById('sendBtn').disabled = true;
+  try {
+    const result = await searchProducts(q, lang);
+    typingEl.remove();
+    if (result.error === 'limit_reached') { showUpgradeModal(); busy=false; document.getElementById('sendBtn').disabled=false; return; }
+    if (!result.success) addMsg('ai',`<div class="error-banner"><span>⚠️</span><span>${esc(result.error||'No results found')}</span></div>`,true);
+    else if (result.data?.raw) addMsg('ai',`<p style="font-size:14px;line-height:1.75">${esc(result.data.message)}</p>`,true);
+    else { addSearchBlock(q, renderResults(result.data)); loadHistoryList(); if (result.searches_left!==undefined) updateCounter({plan:result.plan,searches_left:result.searches_left,searches_today:result.searches_today}); }
+  } catch(err) {
+    typingEl.remove();
+    if (err.message?.includes('403')||err.message?.includes('limit')) showUpgradeModal();
+    else addMsg('ai',`<div class="error-banner"><span>⚠️</span><span>${esc(err.message)}</span></div>`,true);
+  }
+  busy=false; document.getElementById('sendBtn').disabled=false; scrollDown();
+}
+
+function mobileNav(tab) { document.querySelectorAll('.mobile-nav-btn').forEach(b=>b.classList.remove('active')); const btn=document.getElementById('mNav'+tab.charAt(0).toUpperCase()+tab.slice(1)); if(btn)btn.classList.add('active'); }
+
+function openMobileSheet() {
+  mobileNav('cats');
+  document.getElementById('mobileSheetBody').innerHTML = `<div style="display:flex;flex-direction:column;gap:14px;padding-bottom:8px">
+    <div>
+      <div class="label" style="margin-bottom:6px">⚡ Electronics</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${['Phones','Laptops','Smart TVs','Earbuds','Watches','Cameras','Tablets','Speakers'].map(c=>`<button onclick="setMobileCat('${c}')" style="padding:7px 14px;border-radius:20px;background:var(--ink-3);border:1px solid var(--line);color:var(--mist);font-size:12px;cursor:pointer;font-family:var(--font-body)">${c}</button>`).join('')}
+      </div>
+    </div>
+    <div>
+      <div class="label" style="margin-bottom:6px">🏠 Appliances</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${['AC','Fridge','Washing Machine','Mixer Grinder','Microwave','Water Purifier'].map(c=>`<button onclick="setMobileCat('${c}')" style="padding:7px 14px;border-radius:20px;background:var(--ink-3);border:1px solid var(--line);color:var(--mist);font-size:12px;cursor:pointer;font-family:var(--font-body)">${c}</button>`).join('')}
+      </div>
+    </div>
+    <div>
+      <div class="label" style="margin-bottom:6px">👗 Fashion</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${['Shoes','T-Shirts','Jeans','Kurta','Saree','Bags'].map(c=>`<button onclick="setMobileCat('${c}')" style="padding:7px 14px;border-radius:20px;background:var(--ink-3);border:1px solid var(--line);color:var(--mist);font-size:12px;cursor:pointer;font-family:var(--font-body)">${c}</button>`).join('')}
+      </div>
+    </div>
+    <div>
+      <div class="label" style="margin-bottom:6px">✨ Beauty</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${['Skincare','Face Wash','Perfume','Hair Care','Makeup','Sunscreen'].map(c=>`<button onclick="setMobileCat('${c}')" style="padding:7px 14px;border-radius:20px;background:var(--ink-3);border:1px solid var(--line);color:var(--mist);font-size:12px;cursor:pointer;font-family:var(--font-body)">${c}</button>`).join('')}
+      </div>
+    </div>
+    <div>
+      <div class="label" style="margin-bottom:6px">🛒 Grocery</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${['Atta & Rice','Dal & Pulses','Cooking Oil','Dry Fruits','Tea & Coffee','Snacks'].map(c=>`<button onclick="setMobileCat('${c}')" style="padding:7px 14px;border-radius:20px;background:var(--ink-3);border:1px solid var(--line);color:var(--mist);font-size:12px;cursor:pointer;font-family:var(--font-body)">${c}</button>`).join('')}
+      </div>
+    </div>
+    <div>
+      <div class="label" style="margin-bottom:6px">💊 Health & Fitness</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${['Protein Powder','Vitamins','Fitness Equipment','Yoga Mat','Medicine','Gaming'].map(c=>`<button onclick="setMobileCat('${c}')" style="padding:7px 14px;border-radius:20px;background:var(--ink-3);border:1px solid var(--line);color:var(--mist);font-size:12px;cursor:pointer;font-family:var(--font-body)">${c}</button>`).join('')}
+      </div>
+    </div>
+    <div>
+      <div class="label" style="margin-bottom:6px">🪑 Furniture</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${['Sofa','Bed','Study Table','Office Chair','Wardrobe'].map(c=>`<button onclick="setMobileCat('${c}')" style="padding:7px 14px;border-radius:20px;background:var(--ink-3);border:1px solid var(--line);color:var(--mist);font-size:12px;cursor:pointer;font-family:var(--font-body)">${c}</button>`).join('')}
+      </div>
+    </div>
+    <div>
+      <div class="label" style="margin-bottom:6px">👶 Baby & Kids</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${['Diapers','Baby Food','Toys','Kids Clothes'].map(c=>`<button onclick="setMobileCat('${c}')" style="padding:7px 14px;border-radius:20px;background:var(--ink-3);border:1px solid var(--line);color:var(--mist);font-size:12px;cursor:pointer;font-family:var(--font-body)">${c}</button>`).join('')}
+      </div>
+    </div>
+    <div>
+      <div class="label" style="margin-bottom:6px">🚗 Vehicles</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${['Electric Scooter','Bicycle','Car Accessories','Helmet'].map(c=>`<button onclick="setMobileCat('${c}')" style="padding:7px 14px;border-radius:20px;background:var(--ink-3);border:1px solid var(--line);color:var(--mist);font-size:12px;cursor:pointer;font-family:var(--font-body)">${c}</button>`).join('')}
+      </div>
+    </div>
+    <div>
+      <div class="label" style="margin-bottom:6px">🏬 Platforms</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${['Amazon','Flipkart','Meesho','Nykaa','Myntra','BigBasket','JioMart','Croma','Blinkit','PharmEasy','FirstCry','Ajio','Pepperfry','Snapdeal','Zepto'].map(p=>`<button onclick="searchPlatform('${p}','Best deals on ${p} today');closeMobileSheet()" style="padding:7px 14px;border-radius:20px;background:var(--saffron-d);border:1px solid rgba(255,153,51,0.2);color:var(--saffron);font-size:11px;cursor:pointer;font-family:var(--font-body)">${p}</button>`).join('')}
+      </div>
+    </div>
+  </div>`;
+  document.getElementById('mobileSheetOverlay').classList.add('open');
+  setTimeout(()=>{
+    document.getElementById('mobileSheet').classList.add('open');
+    addSwipeDownToClose('mobileSheet', closeMobileSheet);
+  },10);
+}
+function closeMobileSheet() {
+  document.getElementById('mobileSheet').classList.remove('open');
+  document.getElementById('mobileSheetOverlay').classList.remove('open');
+}
+
+function mobileNavSearch() {
+  mobileNav('search');
+  // Close any open sheets
+  closeMobileSheet();
+  closeMobileProfile();
+  // Focus search input
+  setTimeout(() => {
+    const inp = document.getElementById('searchInput');
+    if (inp) { inp.focus(); inp.scrollIntoView({behavior:'smooth'}); }
+  }, 100);
+}
+function setMobileCat(name) { closeMobileSheet(); mobileNav('search'); setCategory(name, `Best ${name} India 2025`, document.createElement('button')); }
+
+function syncMobileUserInitial() {
+  const initial = document.getElementById('userInitial')?.textContent||'A';
+  const name = document.getElementById('userDisplayName')?.textContent||'User';
+  ['mUserInitial','mProfileInitial'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=initial;});
+  const mName=document.getElementById('mProfileName'); if(mName)mName.textContent=name;
+  const mEmail=document.getElementById('mProfileEmail'); if(mEmail&&currentUser)mEmail.textContent=currentUser.email||'';
+}
+function openMobileProfile() {
+  mobileNav('profile');
+  syncMobileUserInitial();
+  document.getElementById('mobileProfileOverlay').style.display='block';
+  setTimeout(()=>{
+    document.getElementById('mobileProfileSheet').classList.add('open');
+    addSwipeDownToClose('mobileProfileSheet', closeMobileProfile);
+  },10);
+}
+function closeMobileProfile() {
+  document.getElementById('mobileProfileSheet').classList.remove('open');
+  setTimeout(()=>document.getElementById('mobileProfileOverlay').style.display='none',300);
+}
+
+// Swipe down to close any sheet
+function addSwipeDownToClose(sheetId, closeFn) {
+  const sheet = document.getElementById(sheetId);
+  if (!sheet || sheet._swipeAdded) return;
+  sheet._swipeAdded = true;
+  let startY = 0;
+  sheet.addEventListener('touchstart', e => {
+    startY = e.touches[0].clientY;
+  }, {passive:true});
+  sheet.addEventListener('touchend', e => {
+    const diff = e.changedTouches[0].clientY - startY;
+    if (diff > 80) closeFn(); // swipe down 80px → close
+  }, {passive:true});
+}
+</script>
+
+<!-- Footer Credit -->
+<div style="text-align:center;padding:20px 16px 28px;border-top:1px solid var(--line);margin-top:16px">
+  <div style="font-size:9px;color:var(--fog);font-family:var(--font-mono);letter-spacing:2px;text-transform:uppercase">Built &amp; Designed by</div>
+  <div style="font-size:16px;font-weight:600;color:var(--saffron-2);font-family:var(--font-display);margin-top:4px">Aditya Singh</div>
+  <div style="font-size:10px;color:var(--fog);font-family:var(--font-mono);margin-top:4px;opacity:0.6">ShopMind AI &copy; 2025</div>
+</div>
+</body>
+</html>
