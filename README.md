@@ -1,170 +1,135 @@
-# 🛍️ ShopMind AI v2 — Professional Edition
+# ShopMind AI
 
-India's Elite AI Shopping Agent | Groq + Tavily + Supabase
+An AI-assisted shopping research application built around product discovery, web search, and personalised product evaluation.
 
----
+> **Project status:** Portfolio codebase under development. The repository contains a Node.js/Express backend, browser-based frontend, and integrations for Groq, Tavily, and Supabase. A clean installation and end-to-end production deployment have not been independently verified.
 
-## 📁 Folder Structure
+## Overview
 
-```
+ShopMind AI is designed to help users research products by combining AI-generated assistance with web search and product-scoring logic. The codebase also includes account, search-history, payment, event, and watchlist routes.
+
+## Technology
+
+- **Backend:** Node.js, Express
+- **AI integration:** Groq API
+- **Web search:** Tavily API
+- **Authentication and data:** Supabase
+- **Payments:** Razorpay integration present in the backend
+- **Frontend:** HTML, CSS, JavaScript
+
+## Repository structure
+
+```text
 shopmind-ai/
 ├── backend/
-│   ├── server.js              ← Main server entry point
-│   ├── package.json           ← Dependencies
-│   ├── .env.example           ← Environment template
 │   ├── middleware/
-│   │   └── auth.js            ← JWT auth verification
 │   ├── routes/
-│   │   ├── search.js          ← Product search endpoint
-│   │   ├── history.js         ← Chat history endpoints
-│   │   └── auth.js            ← User profile endpoint
-│   └── services/
-│       ├── tavily.js          ← Web search service
-│       ├── groq.js            ← AI analysis service
-│       └── scoring.js         ← Product scoring logic
+│   ├── services/
+│   ├── server.js
+│   ├── package.json
+│   └── package-lock.json
 ├── frontend/
-│   ├── index.html             ← Login / Signup page
-│   ├── dashboard.html         ← Main search page
-│   ├── history.html           ← Search history page
 │   ├── css/
-│   │   └── style.css          ← Complete design system
-│   └── js/
-│       ├── auth.js            ← Supabase auth functions
-│       ├── search.js          ← Search + render functions
-│       └── history.js         ← History functions
+│   ├── js/
+│   ├── index.html
+│   ├── dashboard.html
+│   ├── history.html
+│   └── pricing.html
 └── README.md
 ```
 
----
+## Key code areas
 
-## 🚀 Setup Guide
+| Area | Purpose |
+|---|---|
+| Product search | Search endpoint and product discovery workflow |
+| AI service | Groq integration |
+| Web research | Tavily search integration |
+| Scoring and ranking | Product scoring and ranking services |
+| User accounts | Authentication-related routes and middleware |
+| Search history | Store and retrieve user search history |
+| Watchlist | Product watchlist functionality |
+| Payments | Payment route integration |
 
-### Step 1 — Get Your Free API Keys
+These are code-level capabilities indicated by the repository structure; actual behaviour and production readiness should be tested before describing them as fully operational features.
 
-**Groq (Free AI):**
-1. Go to console.groq.com
-2. Sign up free
-3. Click API Keys → Create Key
-4. Copy key (starts with gsk_...)
+## Local setup
 
-**Tavily (Free Web Search):**
-1. Go to app.tavily.com
-2. Sign up free
-3. Copy your API key from dashboard (starts with tvly-...)
+### 1. Requirements
 
-**Supabase (Free Database):**
-1. Go to supabase.com
-2. Create new project
-3. Go to Settings → API
-4. Copy: Project URL, anon key, service_role key
+- Node.js (LTS recommended)
+- npm
+- API credentials for the services you intend to enable
+- A Supabase project for database/authentication features
 
----
-
-### Step 2 — Setup Database
-
-In Supabase → SQL Editor → New Query, paste and run:
-
-```sql
-CREATE TABLE profiles (
-  id UUID PRIMARY KEY,
-  full_name TEXT DEFAULT '',
-  email TEXT DEFAULT '',
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE chats (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID,
-  session_id TEXT,
-  query TEXT,
-  response JSONB,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE chats ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "profiles_select" ON profiles FOR SELECT USING (auth.uid() = id);
-CREATE POLICY "profiles_insert" ON profiles FOR INSERT WITH CHECK (true);
-CREATE POLICY "chats_select" ON chats FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "chats_insert" ON chats FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "chats_delete" ON chats FOR DELETE USING (auth.uid() = user_id);
-```
-
----
-
-### Step 3 — Configure Environment
-
-```bash
-cd backend
-cp .env.example .env
-```
-
-Open `.env` and fill in all values:
-```
-GROQ_API_KEY=gsk_xxxxx
-TAVILY_API_KEY=tvly-xxxxx
-SUPABASE_URL=https://xxxxx.supabase.co
-SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_KEY=eyJ...
-PORT=3000
-```
-
----
-
-### Step 4 — Add Supabase Keys to Frontend
-
-Open `frontend/js/auth.js` and replace:
-```javascript
-const SUPABASE_URL      = 'YOUR_SUPABASE_URL';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
-```
-
----
-
-### Step 5 — Install & Run
+### 2. Install backend dependencies
 
 ```bash
 cd backend
 npm install
+```
+
+### 3. Configure environment variables
+
+Create `backend/.env` locally. Do not commit this file.
+
+Expected configuration includes the service credentials used by the backend, such as:
+
+```env
+PORT=3000
+GROQ_API_KEY=your_groq_api_key
+TAVILY_API_KEY=your_tavily_api_key
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_KEY=your_supabase_service_role_key
+RAZORPAY_KEY_ID=your_razorpay_key_id
+RAZORPAY_KEY_SECRET=your_razorpay_key_secret
+```
+
+Only configure variables required by the code paths you use. Keep secret keys on the server; never expose service-role or payment secret keys in browser code, screenshots, commits, or public issues.
+
+### 4. Start the server
+
+```bash
 npm start
 ```
 
-Open: http://localhost:3000
+The server is configured to use port 3000 by default. Open `http://localhost:3000`.
+
+## API route groups
+
+The Express application mounts these route groups:
+
+- `/api/search`
+- `/api/history`
+- `/api/auth`
+- `/api/payments`
+- `/api/events`
+- `/api/watchlist`
+- `/api/health`
+
+Inspect the route files for the exact request and response contracts.
+
+## Security and deployment checklist
+
+Before deploying publicly:
+
+- Replace wildcard CORS (`origin: '*'`) with an explicit allowlist of trusted frontend origins.
+- Confirm every protected route verifies authentication and authorisation server-side.
+- Keep Supabase service-role and Razorpay secret keys exclusively on the backend.
+- Review Supabase Row Level Security policies, especially insert/update/delete policies.
+- Add request validation, rate limiting, secure error handling, and production logging.
+- Test payment verification using server-side signature validation.
+- Confirm `.env`, credentials, customer data, and generated logs are excluded from Git.
+
+## Current limitations
+
+This repository documents the implementation structure, not a verified hosted product. API availability, third-party quotas, pricing, deployment costs, and service limits change; consult each provider's current documentation.
+
+## Author
+
+**Aadi9557**
 
 ---
 
-## 📡 API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | /api/search | Search products |
-| GET | /api/history | Get user history |
-| GET | /api/history/:id | Get single chat |
-| DELETE | /api/history | Clear all history |
-| DELETE | /api/history/:id | Delete single chat |
-| GET | /api/auth/me | Get user profile |
-| GET | /api/health | Health check |
-
----
-
-## 🌐 Pages
-
-| URL | Page |
-|-----|------|
-| / | Login / Signup |
-| /dashboard | Main Search App |
-| /history | Search History |
-
----
-
-## 💰 Cost
-
-| Service | Free Tier |
-|---------|-----------|
-| Groq AI | 14,400 requests/day |
-| Tavily | 1,000 searches/month |
-| Supabase | 500MB + 50K users |
-| Hosting | Free on Render/Vercel |
-
-**Total: ₹0 to start** ✅
+If you use or extend this project, configure your own service accounts and review each provider's terms and security guidance.
